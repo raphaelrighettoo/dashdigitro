@@ -9,7 +9,7 @@ import panel as pn
 # Se algum for diferente, altere apenas o texto à direita.
 
 COLUNA_DATA = 'data da venda'
-COLUNA_VALOR_VENDA = 'valor total da venda'
+COLUNA_VALOR_VENDA = 'Valor total da venda'
 COLUNA_REGIONAL = 'regional'
 COLUNA_CONSULTOR = 'consultor'
 COLUNA_UNIDADE_NEGOCIO = 'unidade de negocio'
