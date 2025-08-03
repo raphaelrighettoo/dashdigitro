@@ -12,8 +12,8 @@ COLUNA_DATA = 'data da venda'
 COLUNA_VALOR_VENDA = 'Valor total da venda'
 COLUNA_REGIONAL = 'regional'
 COLUNA_CONSULTOR = 'consultor'
-COLUNA_UNIDADE_NEGOCIO = 'unidade de negocio'
-COLUNA_TIPO_CONTRATO = 'se é novo ou renovação'
+COLUNA_UNIDADE_NEGOCIO = 'unid negocio'
+COLUNA_TIPO_CONTRATO = 'modalidade'
 
 # -----------------------------------
 
