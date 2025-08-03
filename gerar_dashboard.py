@@ -6,12 +6,12 @@ import panel as pn
 # --- CONFIGURAÇÃO DAS COLUNAS ---
 # ATENÇÃO: Verifique se os nomes abaixo correspondem EXATAMENTE
 # aos nomes das colunas no seu arquivo CSV.
-COLUNA_DATA = 'Data da Venda'
+COLUNA_DATA = 'data da venda'
 COLUNA_VALOR_VENDA = 'Valor total da venda'
 COLUNA_REGIONAL = 'regional'
 COLUNA_CONSULTOR = 'consultor'
 COLUNA_UNIDADE_NEGOCIO = 'unid negocio'
-COLUNA_TIPO_CONTRATO = 'modalidade'
+COLUNA_TIPO_CONTRATO = 'solucao'
 # -----------------------------------
 
 # Garante que a extensão do Plotly seja carregada
