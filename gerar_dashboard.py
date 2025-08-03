@@ -8,11 +8,11 @@ pn.extension('plotly')
 
 # Carrega os dados do seu arquivo CSV
 try:
-    # Tente carregar com um separador de ponto e vírgula primeiro
-    df = pd.read_csv('dados.csv', sep=';', parse_dates=['Data da Venda'])
+    # Tenta carregar com ponto e vírgula, informando que o dia vem primeiro
+    df = pd.read_csv('dados.csv', sep=';', parse_dates=['Data da Venda'], dayfirst=True)
 except Exception:
-    # Se falhar, tente com uma vírgula
-    df = pd.read_csv('dados.csv', sep=',', parse_dates=['Data da Venda'])
+    # Se falhar, tenta com vírgula, também informando que o dia vem primeiro
+    df = pd.read_csv('dados.csv', sep=',', parse_dates=['Data da Venda'], dayfirst=True)
 
 
 # --- Criar os Componentes do Dashboard ---
