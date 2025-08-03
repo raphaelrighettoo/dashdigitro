@@ -4,11 +4,17 @@ import plotly.express as px
 import panel as pn
 
 # --- CONFIGURAÇÃO DAS COLUNAS ---
-# ATENÇÃO: Altere os nomes à direita para que correspondam EXATAMENTE
+# ATENÇÃO: Verifique se os nomes abaixo correspondem EXATAMENTE
 # aos nomes das colunas no seu arquivo CSV.
-COLUNA_DATA = 'Data da Venda'
-COLUNA_VALOR = 'Valor'
-COLUNA_REGIAO = 'Região'
+# Se algum for diferente, altere apenas o texto à direita.
+
+COLUNA_DATA = 'data da venda'
+COLUNA_VALOR_VENDA = 'valor total da venda'
+COLUNA_REGIONAL = 'regional'
+COLUNA_CONSULTOR = 'consultor'
+COLUNA_UNIDADE_NEGOCIO = 'unidade de negocio'
+COLUNA_TIPO_CONTRATO = 'se é novo ou renovação'
+
 # -----------------------------------
 
 # Garante que a extensão do Plotly seja carregada
@@ -16,81 +22,95 @@ pn.extension('plotly')
 
 # Carrega os dados do seu arquivo CSV
 try:
-    # Tenta carregar com ponto e vírgula
+    # Tenta carregar com ponto e vírgula, que é comum em CSVs brasileiros
     df = pd.read_csv('dados.csv', sep=';')
 except Exception:
-    # Se falhar, tenta com vírgula
+    # Se falhar, tenta com vírgula, o padrão universal
     df = pd.read_csv('dados.csv', sep=',')
 
 # --- LIMPEZA E PREPARAÇÃO DOS DADOS ---
 
-# 1. Converte a coluna de data para o formato de data, esperando o dia primeiro
-df[COLUNA_DATA] = pd.to_datetime(df[COLUNA_DATA], dayfirst=True)
+# 1. Converte a coluna de data para o formato de data, esperando o dia primeiro (formato BR)
+df[COLUNA_DATA] = pd.to_datetime(df[COLUNA_DATA], dayfirst=True, errors='coerce')
 
 # 2. Limpa e converte a coluna de valor para um formato numérico
+#    - Garante que a coluna seja tratada como texto para a limpeza
 #    - Remove 'R$' e espaços em branco
-#    - Troca o ponto de milhar por nada
+#    - Remove o ponto de milhar
 #    - Troca a vírgula do decimal por um ponto
-#    - Converte o resultado para um número (float)
-df[COLUNA_VALOR] = df[COLUNA_VALOR].astype(str).str.replace('R$', '', regex=False).str.strip()
-df[COLUNA_VALOR] = df[COLUNA_VALOR].str.replace('.', '', regex=False)
-df[COLUNA_VALOR] = df[COLUNA_VALOR].str.replace(',', '.', regex=False)
-df[COLUNA_VALOR] = pd.to_numeric(df[COLUNA_VALOR])
+#    - Converte o resultado para um número, tratando erros
+df[COLUNA_VALOR_VENDA] = df[COLUNA_VALOR_VENDA].astype(str)
+df[COLUNA_VALOR_VENDA] = df[COLUNA_VALOR_VENDA].str.replace('R$', '', regex=False).str.strip()
+df[COLUNA_VALOR_VENDA] = df[COLUNA_VALOR_VENDA].str.replace('.', '', regex=False)
+df[COLUNA_VALOR_VENDA] = df[COLUNA_VALOR_VENDA].str.replace(',', '.', regex=False)
+df[COLUNA_VALOR_VENDA] = pd.to_numeric(df[COLUNA_VALOR_VENDA], errors='coerce')
 
-# --- Criar os Componentes do Dashboard ---
+# Remove linhas onde a conversão de data ou valor falhou
+df.dropna(subset=[COLUNA_DATA, COLUNA_VALOR_VENDA], inplace=True)
 
-# KPI: Faturamento Total
-faturamento_total = df[COLUNA_VALOR].sum()
-kpi_faturamento = pn.indicators.Number(
-    name='Faturamento Total',
-    value=faturamento_total,
-    format='R$ {:,.2f}',
-    font_size='32pt',
-    align='center'
+
+# --- CÁLCULO DOS KPIs ---
+
+faturamento_total = df[COLUNA_VALOR_VENDA].sum()
+total_contratos = len(df)
+ticket_medio = faturamento_total / total_contratos if total_contratos > 0 else 0
+
+# --- CRIAÇÃO DOS GRÁFICOS ---
+
+# Gráfico 1: Vendas por Regional
+vendas_regional = px.bar(
+    df.groupby(COLUNA_REGIONAL)[COLUNA_VALOR_VENDA].sum().sort_values(ascending=False).reset_index(),
+    x=COLUNA_REGIONAL, y=COLUNA_VALOR_VENDA,
+    title='Faturamento por Regional', text_auto='.2s'
+).update_layout(yaxis_title='Faturamento (R$)', xaxis_title='Regional')
+
+# Gráfico 2: Top 10 Consultores
+top_10_consultores = df.groupby(COLUNA_CONSULTOR)[COLUNA_VALOR_VENDA].sum().nlargest(10).sort_values().reset_index()
+vendas_consultor = px.bar(
+    top_10_consultores,
+    x=COLUNA_VALOR_VENDA, y=COLUNA_CONSULTOR,
+    title='Top 10 Consultores por Faturamento', text_auto='.2s', orientation='h'
+).update_layout(xaxis_title='Faturamento (R$)', yaxis_title='Consultor')
+
+# Gráfico 3: Vendas por Unidade de Negócio
+vendas_unidade_negocio = px.pie(
+    df, names=COLUNA_UNIDADE_NEGOCIO, values=COLUNA_VALOR_VENDA,
+    title='Faturamento por Unidade de Negócio', hole=0.4
 )
 
-# Gráfico 1: Vendas por Região
-vendas_por_regiao = px.bar(
-    df.groupby(COLUNA_REGIAO)[COLUNA_VALOR].sum().reset_index(),
-    x=COLUNA_REGIAO,
-    y=COLUNA_VALOR,
-    title='Vendas por Região',
-    labels={
-        COLUNA_VALOR: 'Total de Vendas (R$)',
-        COLUNA_REGIAO: 'Região'
-    }
-)
+# Gráfico 4: Evolução do Faturamento Mensal
+df_mensal = df.set_index(COLUNA_DATA).groupby(pd.Grouper(freq='M'))[COLUNA_VALOR_VENDA].sum().reset_index()
+evolucao_vendas = px.line(
+    df_mensal, x=COLUNA_DATA, y=COLUNA_VALOR_VENDA,
+    title='Evolução Mensal do Faturamento', markers=True
+).update_layout(xaxis_title='Mês', yaxis_title='Faturamento (R$)')
 
-# Gráfico 2: Evolução das Vendas
-vendas_no_tempo = px.line(
-    df.sort_values(COLUNA_DATA),
-    x=COLUNA_DATA,
-    y=COLUNA_VALOR,
-    title='Evolução das Vendas',
-    labels={
-        COLUNA_VALOR: 'Valor da Venda (R$)',
-        COLUNA_DATA: 'Data'
-    }
-)
 
-# --- Montar o Layout do Dashboard ---
+# --- MONTAGEM DO LAYOUT DO DASHBOARD ---
+
+# Cria os componentes de KPI
+kpi_faturamento = pn.indicators.Number(name='Faturamento Total', value=faturamento_total, format='R$ {:,.2f}')
+kpi_ticket_medio = pn.indicators.Number(name='Ticket Médio', value=ticket_medio, format='R$ {:,.2f}')
+kpi_total_contratos = pn.indicators.Number(name='Total de Contratos', value=total_contratos, format='{value:,.0f}')
+
 dashboard = pn.Column(
     pn.Row(
-        "# 📊 Dashboard de Vendas",
+        pn.pane.Markdown("# Dashboard de Vendas Estratégico", styles={'font-size': '24pt', 'margin-left': '20px'}),
         align='center'
     ),
     pn.Row(
-        kpi_faturamento,
-        align='center'
+        kpi_faturamento, kpi_ticket_medio, kpi_total_contratos,
+        align='center', styles={'gap': '2em'}
     ),
+    pn.layout.Divider(),
     pn.Row(
-        vendas_por_regiao,
-        vendas_no_tempo
+        pn.Column(vendas_regional, evolucao_vendas),
+        pn.Column(vendas_consultor, vendas_unidade_negocio)
     ),
     sizing_mode='stretch_width'
 )
 
-# --- Salvar o Dashboard como um arquivo HTML estático ---
+# --- SALVAR O DASHBOARD ---
 dashboard.save(
     'index.html',
     embed=True,
